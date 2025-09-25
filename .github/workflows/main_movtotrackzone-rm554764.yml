@@ -1,4 +1,4 @@
-name: Build and Deploy Java App
+name: Build, Test and Deploy Java App
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  build-and-test:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,6 +29,17 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
+
+      - name: Wait for Azure SQL Server to be ready
+        run: |
+          echo "Aguardando conexão com o banco SQL Server..."
+          for i in {1..30}; do
+            sqlcmd -S ${{ secrets.SQL_SERVER_HOST }} -U ${{ secrets.SPRING_DATASOURCE_USERNAME }} -P ${{ secrets.SPRING_DATASOURCE_PASSWORD }} -Q "SELECT 1" && break
+            echo "Tentativa $i falhou, aguardando 5s..."
+            sleep 5
+          done
+        env:
+          SQL_SERVER_HOST: "tcp:${{ secrets.SQL_SERVER_HOST }},1433"
 
       - name: Build & Test with Maven
         run: mvn clean package
